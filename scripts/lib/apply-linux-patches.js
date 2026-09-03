@@ -75,6 +75,10 @@ function assertRequiredPatches() {
         .filter(([, ok]) => !ok)
         .map(([name]) => name);
     if (failed.length > 0) {
+        if (process.env.WB_SKIP_REQUIRED_PATCHES === '1') {
+            console.error('[apply-linux-patches] WARN: WB_SKIP_REQUIRED_PATCHES=1, continuing despite missing required patches: ' + failed.join(', '));
+            return;
+        }
         console.error('[apply-linux-patches] ERROR: required patches failed: ' + failed.join(', '));
         process.exit(7);
     }

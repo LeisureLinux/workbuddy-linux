@@ -4,7 +4,7 @@ Section: devel
 Priority: optional
 Architecture: __ARCH__
 Maintainer: Community Maintainers <noreply@example.invalid>
-Depends: libgtk-3-0 | libgtk-4-1, libnss3, libxss1, libasound2 | libasound2t64, libsecret-1-0, libxkbfile1
+Depends: libgtk-3-0t64 | libgtk-4-1, libnss3, libxss1, libasound2t64, libsecret-1-0, libxkbfile1
 Description: Unofficial local Linux conversion of WorkBuddy
  This package is generated locally from a user-owned official WorkBuddy
  macOS copy. It does not redistribute upstream software through the source

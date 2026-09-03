@@ -28,7 +28,7 @@ write_native_cleanup_report() {
     mkdir -p "$report_dir"
 
     docs_darwin_dir="$app_dir/node_modules/@tencent/docs-engine/lib/darwin-arm64"
-    docs_dylib_count="$(find "$app_dir/node_modules/@tencent/docs-engine" -name "*.dylib" -type f 2>/dev/null | wc -l | tr -d ' ')"
+    docs_dylib_count="$(find "$app_dir/node_modules/@tencent/docs-engine" -name "*.dylib" -type f 2>/dev/null | wc -l | tr -d ' ' || echo 0)"
     sandbox_foreign_count="0"
     foreign_binary_count="0"
 
