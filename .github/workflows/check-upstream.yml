@@ -2,7 +2,7 @@ name: Check Upstream & Release Slim Deb
 #
 # 每天（北京时间 02:00，UTC 18:00）自动运行：
 #   1. 调官方版本接口 https://www.workbuddy.cn/v2/update?platform=workbuddy-linux-x64-deb
-#      取最新 version / url / sha256
+#      取最新 version / url（接口返回的 sha256hash 与实际文件不符，不做校验）
 #   2. 与仓库最新 Release tag（slim-v<version>）对比
 #      - 已存在 → 无新版，直接退出，不做任何事
 #      - 不存在 → 下载官方 deb → scripts/slim-deb.sh 瘦身 → 发布到 GitHub Releases
@@ -47,12 +47,10 @@ jobs:
           echo "$JSON" | jq .
           VER="$(jq -r '.version // empty' <<<"$JSON")"
           URL="$(jq -r '.url // empty' <<<"$JSON")"
-          SHA="$(jq -r '.sha256hash // empty' <<<"$JSON")"
           [ -n "$VER" ] || { echo "::error::upstream API returned no version"; exit 1; }
           [ -n "$URL" ] || { echo "::error::upstream API returned no url"; exit 1; }
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "url=$URL"      >> "$GITHUB_OUTPUT"
-          echo "sha256=$SHA"   >> "$GITHUB_OUTPUT"
           echo "Upstream version: $VER"
 
       # --------------------------------------------------------------
@@ -75,30 +73,19 @@ jobs:
           fi
 
       # --------------------------------------------------------------
-      # 3. 有新版才继续：下载官方 deb 并校验
+      # 3. 有新版才继续：下载官方 deb（接口哈希口径不符，不做上游校验；
+      #    发布的 Release notes 里附带 slim deb 自身的 sha256 供人工核对）
       # --------------------------------------------------------------
       - name: Download official deb
         if: steps.compare.outputs.build == 'true'
         env:
           URL: ${{ steps.upstream.outputs.url }}
-          SHA: ${{ steps.upstream.outputs.sha256 }}
         run: |
           mkdir -p downloads
           echo "Downloading: $URL"
           curl -fL --retry 3 --retry-delay 10 \
             -o downloads/workbuddy-upstream.deb "$URL"
           ls -lh downloads/workbuddy-upstream.deb
-
-          if [ -n "$SHA" ]; then
-            echo "::group::sha256 verification"
-            ACTUAL="$(sha256sum downloads/workbuddy-upstream.deb | awk '{print $1}')"
-            if [ "$ACTUAL" = "$SHA" ]; then
-              echo "sha256 OK: $ACTUAL"
-            else
-              echo "::warning::sha256 mismatch (expected $SHA, got $ACTUAL) — continuing"
-            fi
-            echo "::endgroup::"
-          fi
 
       - name: Install build dependencies
         if: steps.compare.outputs.build == 'true'
