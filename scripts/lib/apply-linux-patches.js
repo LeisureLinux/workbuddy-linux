@@ -594,20 +594,35 @@ if (source.includes(marker)) {
         console.error('[apply-linux-patches] ERROR: tray construction line not found');
         process.exit(4);
     }
-    const afterTray = source.slice(trayIdx);
-    const contextMenuDeclRe = /const contextMenu = electron\.Menu\.buildFromTemplate\(\[[\s\S]*?\]\);/;
-    const m = afterTray.match(contextMenuDeclRe);
-    if (!m) {
-        console.error('[apply-linux-patches] ERROR: contextMenu declaration not found after tray');
-        process.exit(5);
+
+    // Upstream >= 5.5.x already attaches a context menu on Linux via
+    //   if (process.platform === "linux") this.tray.setContextMenu(this.buildFallbackMenu());
+    // inside the same `else` branch that creates the Tray. Detect this
+    // modern layout and skip the legacy contextMenu-anchor patch in that
+    // case — the upstream code is already correct for libayatana-appindicator.
+    const afterTrayWindow = source.slice(trayIdx, trayIdx + 1200);
+    const upstreamAlreadyAttachesContextMenu =
+        /process\.platform === ["']linux["']/.test(afterTrayWindow) &&
+        /setContextMenu\s*\(/.test(afterTrayWindow);
+    if (upstreamAlreadyAttachesContextMenu) {
+        log('upstream already calls tray.setContextMenu on Linux (>= 5.5.x); skipping legacy contextMenu-anchor patch');
+        markRequired('trayContextMenu', true);
+    } else {
+        const afterTray = source.slice(trayIdx);
+        const contextMenuDeclRe = /const contextMenu = electron\.Menu\.buildFromTemplate\(\[[\s\S]*?\]\);/;
+        const m = afterTray.match(contextMenuDeclRe);
+        if (!m) {
+            console.error('[apply-linux-patches] ERROR: contextMenu declaration not found after tray');
+            process.exit(5);
+        }
+        const insertAt = trayIdx + m.index + m[0].length;
+        const trayPatch =
+            '\n\t\t\tif (process.platform === "linux") {\n' +
+            '\t\t\t\ttry { this.tray.setContextMenu(contextMenu); } catch (_) {}\n' +
+            '\t\t\t}';
+        source = source.slice(0, insertAt) + trayPatch + source.slice(insertAt);
+        markRequired('trayContextMenu', true);
     }
-    const insertAt = trayIdx + m.index + m[0].length;
-    const trayPatch =
-        '\n\t\t\tif (process.platform === "linux") {\n' +
-        '\t\t\t\ttry { this.tray.setContextMenu(contextMenu); } catch (_) {}\n' +
-        '\t\t\t}';
-    source = source.slice(0, insertAt) + trayPatch + source.slice(insertAt);
-    markRequired('trayContextMenu', true);
 
     // Fix 3 (Linux): the tray icon renders as a missing-image placeholder
     // (exclamation mark on Mint/Cinnamon) because upstream hands
