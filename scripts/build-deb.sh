@@ -11,6 +11,8 @@ DIST_DIR="${DIST_DIR:-$REPO_DIR/dist}"
 PKG_ROOT="${PKG_ROOT:-$DIST_DIR/deb-root}"
 PACKAGE_NAME="${PACKAGE_NAME:-workbuddy}"
 PACKAGE_VERSION="${PACKAGE_VERSION:-$(resolve_package_version)}"
+MAINTAINER="${MAINTAINER:-LeisureLinux <AlbertXu@FreeLAMP.com>}"
+HOMEPAGE="${HOMEPAGE:-https://workbuddy.cn/}"
 DESKTOP_TEMPLATE="$REPO_DIR/packaging/linux/workbuddy.desktop"
 CONTROL_TEMPLATE="$REPO_DIR/packaging/linux/control"
 
@@ -66,6 +68,9 @@ EOF
         -e "s/__PACKAGE_NAME__/$PACKAGE_NAME/g" \
         -e "s/__VERSION__/$PACKAGE_VERSION/g" \
         -e "s/__ARCH__/$arch/g" \
+        -e "s|__MAINTAINER__|$MAINTAINER|g" \
+        -e "s|__HOMEPAGE__|$HOMEPAGE|g" \
+        -e "s|__DOWNLOAD_HOMEPAGE__|$HOMEPAGE|g" \
         "$CONTROL_TEMPLATE" > "$PKG_ROOT/DEBIAN/control"
     chmod 0644 "$PKG_ROOT/DEBIAN/control"
 

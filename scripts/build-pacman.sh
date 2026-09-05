@@ -13,6 +13,8 @@ PACKAGE_NAME="${PACKAGE_NAME:-workbuddy}"
 PACKAGE_VERSION="${PACKAGE_VERSION:-$(resolve_package_version)}"
 PACMAN_VERSION="${PACKAGE_VERSION//+/_}"
 PACMAN_VERSION="${PACMAN_VERSION//-/_}"
+MAINTAINER="${MAINTAINER:-LeisureLinux <AlbertXu@FreeLAMP.com>}"
+HOMEPAGE="${HOMEPAGE:-https://workbuddy.cn/}"
 DESKTOP_TEMPLATE="$REPO_DIR/packaging/linux/workbuddy.desktop"
 
 map_arch() {
@@ -69,9 +71,9 @@ pkgname = $PACKAGE_NAME
 pkgbase = $PACKAGE_NAME
 pkgver = $PACMAN_VERSION-1
 pkgdesc = Unofficial local Linux conversion of WorkBuddy
-url = https://github.com/tencent-cloud/WorkBuddy
+url = $HOMEPAGE
 builddate = $(date -u +%s)
-packager = workbuddy-linux
+packager = $MAINTAINER
 size = $installed_size
 arch = $arch
 license = MIT

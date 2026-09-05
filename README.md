@@ -154,6 +154,25 @@ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ bash install.sh
 ELECTRON_HEADERS_URL=https://artifacts.electronjs.org/headers/dist bash install.sh
 ```
 
+打包阶段（如 `make deb` / `make rpm` / `make pacman`）的元数据也可通过环境变量覆盖：
+
+```bash
+# 自定义 deb / rpm / pacman 包中的 Maintainer 字段
+# deb 和 pacman 接受完整的 "Name <email>" 字符串
+MAINTAINER="LeisureLinux <AlbertXu@FreeLAMP.com>" make deb
+# rpm 将空格前的部分作为 Name 提交为 packager
+MAINTAINER_NAME="LeisureLinux" make rpm
+
+# 自定义 deb / rpm / pacman 包中的 Homepage / URL / url 字段
+# 同时影响 control 文件的 Homepage: 行和描述中的下载页链接
+HOMEPAGE="https://workbuddy.cn/" make deb
+```
+
+未设置时使用以下默认值，与当前 `packaging/linux/control` 模板保持一致：
+
+- `MAINTAINER` / `MAINTAINER_NAME` → `LeisureLinux <AlbertXu@FreeLAMP.com>` / `LeisureLinux`
+- `HOMEPAGE` → `https://workbuddy.cn/`
+
 ## 仓库维护规范
 
 以下目录因会存放上游软件、生成类安装包文件，已被 Git 忽略，**切勿手动提交**：
@@ -331,6 +350,26 @@ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ bash install.sh
 # Custom Electron headers download URL
 ELECTRON_HEADERS_URL=https://artifacts.electronjs.org/headers/dist bash install.sh
 ```
+
+Metadata fields written into the produced packages (`make deb` / `make rpm` / `make pacman`) can also be overridden via environment variables:
+
+```bash
+# Override the Maintainer field in the .deb control / .PKGINFO.
+# For .deb and pacman the value is the full "Name <email>" string.
+MAINTAINER="LeisureLinux <AlbertXu@FreeLAMP.com>" make deb
+# For .rpm, only the name (the part before any whitespace) is submitted
+# as `packager` via `rpmbuild --define`.
+MAINTAINER_NAME="LeisureLinux" make rpm
+
+# Override the Homepage / URL / url field of the produced package.
+# Also rewrites the download link inside the long description.
+HOMEPAGE="https://workbuddy.cn/" make deb
+```
+
+Defaults, matching the committed `packaging/linux/control` template:
+
+- `MAINTAINER` / `MAINTAINER_NAME` → `LeisureLinux <AlbertXu@FreeLAMP.com>` / `LeisureLinux`
+- `HOMEPAGE` → `https://workbuddy.cn/`
 
 ## Repository Maintenance Rules
 

@@ -13,6 +13,8 @@ PACKAGE_NAME="${PACKAGE_NAME:-workbuddy}"
 PACKAGE_VERSION="${PACKAGE_VERSION:-$(resolve_package_version)}"
 RPM_VERSION="${PACKAGE_VERSION//+/_}"
 RPM_VERSION="${RPM_VERSION//-/_}"
+MAINTAINER_NAME="${MAINTAINER_NAME:-LeisureLinux}"
+HOMEPAGE="${HOMEPAGE:-https://workbuddy.cn/}"
 DESKTOP_TEMPLATE="$REPO_DIR/packaging/linux/workbuddy.desktop"
 SPEC_FILE="$DIST_DIR/$PACKAGE_NAME.spec"
 
@@ -73,6 +75,7 @@ Version: $RPM_VERSION
 Release: 1%{?dist}
 Summary: Unofficial local Linux conversion of WorkBuddy
 License: MIT
+URL: $HOMEPAGE
 BuildArch: $arch
 Requires: gtk3, nss, libXScrnSaver, alsa-lib, libsecret, libxkbfile
 
@@ -80,6 +83,9 @@ Requires: gtk3, nss, libXScrnSaver, alsa-lib, libsecret, libxkbfile
 This package is generated locally from a user-owned official WorkBuddy
 macOS copy. It does not redistribute upstream software through the source
 repository.
+
+Download the official WorkBuddy macOS DMG from:
+$HOMEPAGE
 
 %install
 mkdir -p %{buildroot}
@@ -92,7 +98,15 @@ cp -a $PKG_ROOT/. %{buildroot}/
 $icon_files_entry
 EOF
 
-    rpmbuild --define "_topdir $output_dir" --define "_build_id_links none" -bb "$SPEC_FILE" >&2
+    # Packager is only valid in the local rpmbuild invocation, not in the
+    # rendered spec. Inject it via --define so users can override it
+    # without editing the spec template.
+    RPMBUILD_DEFINES=(--define "_topdir $output_dir" --define "_build_id_links none")
+    if [ -n "$MAINTAINER_NAME" ]; then
+        RPMBUILD_DEFINES+=(--define "packager $MAINTAINER_NAME")
+    fi
+
+    rpmbuild "${RPMBUILD_DEFINES[@]}" -bb "$SPEC_FILE" >&2
     mkdir -p "$DIST_DIR"
     find "$output_dir/RPMS" -type f -name "*.rpm" -exec cp {} "$output_file" \;
     [ -f "$output_file" ] || error "RPM was not produced"

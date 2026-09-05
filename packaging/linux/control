@@ -3,9 +3,12 @@ Version: __VERSION__
 Section: devel
 Priority: optional
 Architecture: __ARCH__
-Maintainer: Community Maintainers <noreply@example.invalid>
+Maintainer: __MAINTAINER__
+Homepage: __HOMEPAGE__
 Depends: libgtk-3-0t64 | libgtk-4-1, libnss3, libxss1, libasound2t64, libsecret-1-0, libxkbfile1
 Description: Unofficial local Linux conversion of WorkBuddy
  This package is generated locally from a user-owned official WorkBuddy
  macOS copy. It does not redistribute upstream software through the source
  repository.
+ Download the official WorkBuddy macOS DMG from:
+ __DOWNLOAD_HOMEPAGE__
