@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "@genie/workbuddy-desktop",
-  "version": "5.1.4",
+  "version": "5.5.3",
   "description": "WorkBuddy Desktop - AI Agent Desktop Application",
   "author": "Tencent Technology (Shenzhen)",
   "main": "main/index.js",
