@@ -198,7 +198,7 @@ if [ "${WORKBUDDY_DISABLE_SANDBOX:-0}" = "1" ] || [ -n "${APPIMAGE:-}" ]; then
 fi
 
 # ---- Launch Electron ----
-exec "$APPDIR/opt/workbuddy/electron" "${ARGS[@]}" "$@"
+exec "$APPDIR/opt/workbuddy/workbuddy" "${ARGS[@]}" "$@"
 APPRUN
     chmod 0755 "$appdir_path/AppRun"
 

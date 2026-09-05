@@ -247,7 +247,7 @@ if [ "\${WORKBUDDY_LOCAL_MODE:-0}" = "1" ]; then
   exec "\$APP_DIR/resources/app.asar.unpacked/cli/bin/codebuddy" --serve --host 127.0.0.1 --port "\${WORKBUDDY_LOCAL_PORT:-7890}" --open
 fi
 
-exec "\$APP_DIR/electron" "\${ARGS[@]}" "\$@"
+exec "\$APP_DIR/workbuddy" "\${ARGS[@]}" "\$@"
 EOF
     chmod +x "$INSTALL_DIR/start.sh"
 

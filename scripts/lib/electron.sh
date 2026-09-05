@@ -50,7 +50,18 @@ download_electron_runtime() {
     fi
 
     unzip -qo "$cached_zip" -d "$INSTALL_DIR"
-    [ -x "$INSTALL_DIR/electron" ] || error "Electron binary was not extracted"
+    if [ ! -e "$INSTALL_DIR/electron" ]; then
+        error "Electron binary was not extracted (expected at $INSTALL_DIR/electron)"
+    fi
+    # Rename the Electron artifact to the project name so the installed
+    # tree is uniformly named after the application, not the framework.
+    # Keep a symlink named `electron` so any process-title / argv[0]
+    # logic that hard-codes the framework name still resolves to the
+    # same executable.
+    if [ ! -e "$INSTALL_DIR/workbuddy" ]; then
+        mv "$INSTALL_DIR/electron" "$INSTALL_DIR/workbuddy"
+        ln -s workbuddy "$INSTALL_DIR/electron"
+    fi
     rm -rf "$lock_dir"
     trap - RETURN
 }
