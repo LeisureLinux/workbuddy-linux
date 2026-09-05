@@ -1,4 +1,4 @@
-# WorkBuddy for Linux (Unofficial)
+# WorkBuddy for Linux — Slim（非官方瘦身版）
 
 [English](#english) | [简体中文](#简体中文)
 
@@ -8,13 +8,34 @@
 
 ## 项目简介
 
-这是一款非官方社区工具，核心作用是将你自行获取的官方 WorkBuddy macOS Intel/x64 版本 DMG 安装包，转换为可在本地 Linux 系统运行的 Electron 应用。
+本仓库提供官方 WorkBuddy Linux 版（`.deb`）的 **slim（瘦身）重打包**：基于官方 Linux 安装包，移除 Windows/macOS 等非本平台 payload、剥离 debug 符号、裁剪无用 locale，产出体积更小的 `.deb`。
 
-本仓库**仅作为转换工具**，绝不充当软件分发渠道。请务必前往官方网站下载正版 Intel/x64 架构 DMG 安装包，放置于项目 `downloads/` 目录下；所有生成的应用目录、安装包产物均仅保留在本地，且已加入 Git 忽略规则，不会被提交至仓库。
+**本仓库为非官方版本**，与腾讯无任何关联。官方软件本体版权归腾讯所有；slim 包仅做删除与重打包，未修改任何应用代码。使用问题请在本仓库提 Issue，**严禁跳脸向官方客服反馈**。
 
-遇到任何 Bug 请在此仓库提 Issue ，严禁跳脸向官方客服反馈在 Linux 移植后使用的相关问题。
+> 前置说明：官方现已直接提供 Linux `.deb` / `.rpm` 安装包（429MB），本仓库在其基础上产出约 330MB 的 slim 版（安装体积 -25%）。如你只需要官方原版，请直接从官网下载。
 
-## 项目状态
+## Slim 版自动发布（本仓库主要产出）
+
+仓库内置 CI 工作流 [`check-upstream.yml`](.github/workflows/check-upstream.yml)，实现全自动跟踪上游：
+
+1. **每天北京时间 02:00**（UTC 18:00）自动查询官方版本接口 `https://www.workbuddy.cn/v2/update?platform=workbuddy-linux-x64-deb`；
+2. 与仓库最新 Release tag（`slim-v<版本号>`）对比：**没有新版则不做任何事**；
+3. 检测到新版本 → 下载官方 deb（校验 sha256，不匹配仅告警）→ 执行 `scripts/slim-deb.sh` 瘦身（自带 node/python 运行时冒烟测试）→ **自动发布到 [GitHub Releases](../../releases)**。
+
+slim 包内容（相对官方 deb 的变更，全部为删除操作）：
+
+| 类别 | 内容 | 节省 |
+|---|---|---|
+| strip 符号/调试信息 | libpython、node 等未 strip 的 ELF（脚本对布局畸形的二进制自动跳过） | ~214MB |
+| 其他平台 payload | node-pty / koffi / @lydell / weixinpay 的 win32、darwin 预编译包 | ~65MB |
+| 编译中间产物与头文件 | better-sqlite3 obj、node `include/` | ~70MB |
+| locale 裁剪 | 55 → 4（zh-CN / zh-TW / en-US / en-GB） | ~19MB |
+
+包版本号带 `+slim1` 后缀，可直接覆盖升级官方版。也可手动触发：Actions → *Check Upstream & Release Slim Deb* → *Run workflow*（`force=true` 可强制重建当前版本）。
+
+> ⚠️ GitHub 定时工作流在仓库 **60 天无活动**后会被自动禁用，需要偶尔有 commit 保活。
+
+## 项目状态（DMG 移植管线，历史能力）
 
 目前项目已完整实现 Linux 端的转换与打包核心流程，具体功能如下：
 
@@ -32,7 +53,17 @@
 
 ## 快速安装
 
-本项目**未上架 AUR**，所有 Linux 发行版均需在本地通过本仓库脚本完成构建与安装。
+### 方式一：直接下载 slim 包（推荐）
+
+从 [GitHub Releases](../../releases) 下载最新的 `*_slim.deb`：
+
+```bash
+sudo dpkg -i workbuddy_*+slim1_amd64_slim.deb
+# 或
+sudo apt install ./workbuddy_*+slim1_amd64_slim.deb
+```
+
+### 方式二：本地从官方 DMG 移植构建（历史管线）
 
 1. 克隆本项目至本地 Linux 机器；
 2. 在项目根目录创建 `downloads` 文件夹；
@@ -187,7 +218,7 @@ HOMEPAGE="https://workbuddy.cn/" make deb
 
 ## 免责声明
 
-本项目为**非官方社区开源工具**，与腾讯官方无任何关联。WorkBuddy 是腾讯旗下产品（版权 © 2026 腾讯云计算（北京）有限责任公司丨腾讯科技（深圳）有限公司 版权所有）。本工具不分发任何 WorkBuddy 官方软件，仅自动化实现用户对自有正版安装包的格式转换流程。
+本项目为**非官方社区开源工具**，与腾讯官方无任何关联。WorkBuddy 是腾讯旗下产品（版权 © 2026 腾讯云计算（北京）有限责任公司丨腾讯科技（深圳）有限公司 版权所有）。本仓库发布的 slim 包为官方 Linux 安装包的**删除式重打包**：未修改、未逆向任何应用代码，官方软件本体及其版权归腾讯所有，仍受腾讯官方 EULA 约束。
 
 使用本工具产生的 WorkBuddy 应用仍受腾讯官方协议约束，请以官网或应用内最新版服务条款、隐私协议为准。
 
@@ -199,8 +230,8 @@ HOMEPAGE="https://workbuddy.cn/" make deb
 4. **风险自担**：使用本工具进行格式转换和运行所产生的一切后果，由用户自行承担。
 5. **商标声明**：WorkBuddy、CodeBuddy 及相关标识是腾讯公司的商标或注册商标。本项目使用这些名称仅用于描述性目的，不暗示任何官方认可或授权。
 6. **下架预案**：如腾讯或任何相关权利方对本项目存在异议，请通过本仓库 Issue 或邮件联系维护者。维护者承诺在收到合理异议后立即停止维护，并按权利方要求处理 GitHub 仓库。
-7. **项目定位**： 本项目（包括本 GitHub 仓库及相关自动化脚本）仅用于技术研究与概念验证。原作者从未、亦绝不分发任何官方二进制软件。
-8. **第三方责任**： 任何第三方因 Fork、修改本项目，或自行分发移植二进制安装包（Releases）而产生的版权争议与法律责任，均由该第三方独立承担，与本项目原作者无关。
+7. **项目定位**： 本仓库（包括自动化脚本与 CI 工作流）用于技术研究与个人使用。Releases 中的 slim 包为官方 deb 的删除式重打包，应用代码与官方版本完全一致，版权归腾讯所有；如需官方原版请从官网获取。
+8. **第三方责任**： 任何第三方因 Fork、修改本项目，或自行分发安装包（Releases）而产生的版权争议与法律责任，均由该第三方独立承担，与本项目原作者无关。
 
 ## 开源许可证
 
@@ -212,13 +243,25 @@ HOMEPAGE="https://workbuddy.cn/" make deb
 
 ## Project Introduction
 
-This is an unofficial community tool designed to convert your legally obtained official WorkBuddy macOS Intel/x64 DMG installer into a local Linux Electron application.
+This repository provides **slim (slimmed-down) repacks** of the official WorkBuddy Linux `.deb` package: based on the official Linux installer, it removes non-Linux payloads (Windows/macOS), strips debug symbols, and trims unused locales, producing a smaller `.deb`.
 
-This repository **serves solely as a converter** and will never act as a software redistribution channel. Please download the genuine Intel/x64 DMG installer from the official website and place it in the `downloads/` directory. All generated application directories and package artifacts are stored locally only and are added to Git ignore rules to avoid being committed to the repository.
+**This is an unofficial repository** and has no affiliation with Tencent. The WorkBuddy software itself is copyrighted by Tencent; the slim package only performs deletion and repacking, without modifying any application code. For issues, please file an Issue in this repository. Do not contact official customer service.
 
-If you encounter any bugs, please submit an Issue in this repository. Do not directly contact official customer service to report issues related to usage after Linux porting.
+> Note: the official site now directly provides Linux `.deb` / `.rpm` installers (429MB). This repository produces a ~330MB slim build from them (25% smaller installed size). If you only need the official original, download it from the official website.
 
-## Project Status
+## Slim Auto-Release (Primary Output of This Repo)
+
+The [`check-upstream.yml`](.github/workflows/check-upstream.yml) workflow fully automates upstream tracking:
+
+1. **Daily at 02:00 Beijing time** (UTC 18:00), queries the official version API `https://www.workbuddy.cn/v2/update?platform=workbuddy-linux-x64-deb`;
+2. Compares with the latest Release tag (`slim-v<version>`): **if there is no new version, it does nothing**;
+3. On a new release → downloads the official deb (sha256 verified, mismatch only warns) → runs `scripts/slim-deb.sh` (with built-in node/python runtime smoke tests) → **publishes automatically to [GitHub Releases](../../releases)**.
+
+Package versions carry a `+slim1` suffix and can upgrade over an official installation. Manual trigger: Actions → *Check Upstream & Release Slim Deb* → *Run workflow* (`force=true` forces a rebuild of the current upstream version).
+
+> ⚠️ GitHub disables scheduled workflows after **60 days of repository inactivity**; push an occasional commit to keep it alive.
+
+## Project Status (DMG Porting Pipeline, Legacy)
 
 The project currently fully implements the core Linux-side conversion and packaging workflow, with specific features as follows:
 
@@ -236,7 +279,17 @@ The project currently fully implements the core Linux-side conversion and packag
 
 ## Quick Install
 
-This project is **not published on the AUR**. All Linux distributions must build and install locally via the scripts in this repository.
+### Option 1: Download the slim package (recommended)
+
+Grab the latest `*_slim.deb` from [GitHub Releases](../../releases):
+
+```bash
+sudo dpkg -i workbuddy_*+slim1_amd64_slim.deb
+# or
+sudo apt install ./workbuddy_*+slim1_amd64_slim.deb
+```
+
+### Option 2: Build locally from the official DMG (legacy pipeline)
 
 1. Clone this repository to your local Linux machine;
 2. Create a `downloads/` folder in the project root;
@@ -385,7 +438,7 @@ Committing DMG installers, extracted `.app` bundles, generated Linux application
 
 ## Disclaimer
 
-This project is an **unofficial community open-source tool** and has no affiliation with Tencent. WorkBuddy is a product of Tencent (copyright © 2026 Tencent Cloud Computing (Beijing) Co., Ltd. and Tencent Technology (Shenzhen) Co., Ltd. All rights reserved). This tool does not redistribute any official WorkBuddy software; it only automates the format conversion process for users' genuine installers.
+This project is an **unofficial community open-source tool** and has no affiliation with Tencent. WorkBuddy is a product of Tencent (copyright © 2026 Tencent Cloud Computing (Beijing) Co., Ltd. and Tencent Technology (Shenzhen) Co., Ltd. All rights reserved). The slim packages published in this repository are **deletion-based repacks** of the official Linux installer: no application code is modified or reverse-engineered, and the WorkBuddy software itself and its copyright remain with Tencent, still governed by Tencent's official EULA.
 
 The WorkBuddy application produced by this tool remains governed by Tencent's official agreements; please refer to the latest terms of service and privacy policy on the official website or in the application.
 
@@ -397,8 +450,8 @@ By using this tool, you acknowledge and agree to the following:
 4. **Use at Your Own Risk**: All consequences arising from using this tool for format conversion and running the application are borne solely by the user.
 5. **Trademark Notice**: WorkBuddy, CodeBuddy, and related logos are trademarks or registered trademarks of Tencent. The use of these names in this project is for descriptive purposes only and does not imply any official endorsement or authorization.
 6. **Takedown Policy**: If Tencent or any rights holder objects to this project, please contact the maintainer via a GitHub issue or email. The maintainer commits to immediately suspending maintenance and processing the GitHub repository in accordance with the rights holder's reasonable request upon receipt of such objection.
-7. **Project Purpose**: This project (including this GitHub repository and any related automation scripts) is intended solely for technical research and proof-of-concept purposes. The original author has never distributed, and will never distribute, any official proprietary binary software.
-8. **Third-Party Responsibility**: Any copyright disputes or legal liabilities arising from third-party forks, modifications, or the independent publication of pre-compiled binary installation packages (including GitHub Releases) shall be the sole responsibility of such third parties, and are entirely unrelated to the original author.
+7. **Project Purpose**: This repository (including its automation scripts and CI workflows) is intended for technical research and personal use. The slim packages in Releases are deletion-based repacks of the official deb; the application code is identical to the official version and its copyright belongs to Tencent. For the official original, please obtain it from the official website.
+8. **Third-Party Responsibility**: Any copyright disputes or legal liabilities arising from third-party forks, modifications, or the independent publication of binary installation packages (including GitHub Releases) shall be the sole responsibility of such third parties, and are entirely unrelated to the original author.
 
 ## License
 

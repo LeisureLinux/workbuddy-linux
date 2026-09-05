@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help deps build-app run-app deb rpm pacman appimage package install check clean
+.PHONY: help deps build-app run-app deb rpm pacman appimage package install slim-deb check clean
 
 help:
 	@echo "Targets:"
@@ -14,6 +14,7 @@ help:
 	@echo "  make appimage"
 	@echo "  make package               # auto-detect: deb / rpm / pacman / appimage"
 	@echo "  make install"
+	@echo "  make slim-deb DEB=/path/to/official.deb   # official linux deb -> slim deb"
 	@echo "  make check"
 	@echo "  make clean"
 
@@ -43,6 +44,13 @@ package:
 
 install:
 	bash scripts/install-package.sh
+
+slim-deb:
+	@if [ -z "$(DEB)" ]; then \
+		echo "Usage: make slim-deb DEB=/path/to/WorkBuddy-linux-x64-deb-*.deb (URL also works)"; \
+		exit 2; \
+	fi
+	bash scripts/slim-deb.sh "$(DEB)"
 
 check:
 	bash -n install.sh scripts/*.sh scripts/lib/*.sh

@@ -1,0 +1,170 @@
+name: Check Upstream & Release Slim Deb
+#
+# 每天（北京时间 02:00，UTC 18:00）自动运行：
+#   1. 调官方版本接口 https://www.workbuddy.cn/v2/update?platform=workbuddy-linux-x64-deb
+#      取最新 version / url / sha256
+#   2. 与仓库最新 Release tag（slim-v<version>）对比
+#      - 已存在 → 无新版，直接退出，不做任何事
+#      - 不存在 → 下载官方 deb → scripts/slim-deb.sh 瘦身 → 发布到 GitHub Releases
+#
+# 也可在 Actions 页面手动 Run workflow，force=true 可强制重建当前上游版本。
+#
+# 注意：GitHub 定时工作流在仓库 60 天无活动后会被自动禁用，偶尔推个 commit 保活。
+
+on:
+  schedule:
+    - cron: '0 18 * * *' # UTC 18:00 = 北京时间次日 02:00
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force rebuild even if the release already exists'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # 创建 Release + 上传资产
+
+concurrency:
+  group: check-upstream
+  cancel-in-progress: false
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # --------------------------------------------------------------
+      # 1. 查询上游最新版本
+      # --------------------------------------------------------------
+      - name: Query upstream version
+        id: upstream
+        run: |
+          JSON="$(curl -fsSL 'https://www.workbuddy.cn/v2/update?platform=workbuddy-linux-x64-deb')"
+          echo "$JSON" | jq .
+          VER="$(jq -r '.version // empty' <<<"$JSON")"
+          URL="$(jq -r '.url // empty' <<<"$JSON")"
+          SHA="$(jq -r '.sha256hash // empty' <<<"$JSON")"
+          [ -n "$VER" ] || { echo "::error::upstream API returned no version"; exit 1; }
+          [ -n "$URL" ] || { echo "::error::upstream API returned no url"; exit 1; }
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "url=$URL"      >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA"   >> "$GITHUB_OUTPUT"
+          echo "Upstream version: $VER"
+
+      # --------------------------------------------------------------
+      # 2. 与最新 Release 对比，判断是否有新版
+      # --------------------------------------------------------------
+      - name: Compare with latest release
+        id: compare
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="slim-v${{ steps.upstream.outputs.version }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.force }}" != "true" ] && \
+             gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::release $TAG already exists — nothing to do"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --------------------------------------------------------------
+      # 3. 有新版才继续：下载官方 deb 并校验
+      # --------------------------------------------------------------
+      - name: Download official deb
+        if: steps.compare.outputs.build == 'true'
+        env:
+          URL: ${{ steps.upstream.outputs.url }}
+          SHA: ${{ steps.upstream.outputs.sha256 }}
+        run: |
+          mkdir -p downloads
+          echo "Downloading: $URL"
+          curl -fL --retry 3 --retry-delay 10 \
+            -o downloads/workbuddy-upstream.deb "$URL"
+          ls -lh downloads/workbuddy-upstream.deb
+
+          if [ -n "$SHA" ]; then
+            echo "::group::sha256 verification"
+            ACTUAL="$(sha256sum downloads/workbuddy-upstream.deb | awk '{print $1}')"
+            if [ "$ACTUAL" = "$SHA" ]; then
+              echo "sha256 OK: $ACTUAL"
+            else
+              echo "::warning::sha256 mismatch (expected $SHA, got $ACTUAL) — continuing"
+            fi
+            echo "::endgroup::"
+          fi
+
+      - name: Install build dependencies
+        if: steps.compare.outputs.build == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            binutils file dpkg-dev jq xz-utils
+          strip --version | head -1
+
+      # --------------------------------------------------------------
+      # 4. 瘦身转换（脚本自带 strip 安全回退 + node/python 冒烟测试）
+      # --------------------------------------------------------------
+      - name: Build slim deb
+        if: steps.compare.outputs.build == 'true'
+        run: |
+          make slim-deb DEB=downloads/workbuddy-upstream.deb
+          echo "::group::dist/"
+          ls -lh dist/
+          echo "::endgroup::"
+
+      # --------------------------------------------------------------
+      # 5. 发布到 GitHub Releases
+      # --------------------------------------------------------------
+      - name: Create Release
+        if: steps.compare.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.compare.outputs.tag }}
+          VER: ${{ steps.upstream.outputs.version }}
+        run: |
+          DEB="$(ls dist/*_slim.deb | head -1)"
+          [ -n "$DEB" ] || { echo "::error::no slim deb produced"; exit 1; }
+
+          PKG_VER="$(dpkg-deb -f "$DEB" Version)"
+          INSTALLED_MB=$(( $(dpkg-deb -f "$DEB" Installed-Size) / 1024 ))
+          DEB_MB=$(( $(stat -c%s "$DEB") / 1024 / 1024 ))
+          SHA_ACTUAL="$(sha256sum "$DEB" | awk '{print $1}')"
+
+          gh release create "$TAG" "$DEB" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WorkBuddy slim v$VER" \
+            --notes "$(cat <<EOF
+          ## WorkBuddy Linux slim v$VER
+
+          官方 Linux deb 的**非官方瘦身重打包**：移除 Windows/macOS 等非本平台 payload、
+          裁剪 debug 符号与无用 locale，功能与官方版本一致。
+
+          | 元数据 | 值 |
+          |---|---|
+          | 包版本 | \`$PKG_VER\` |
+          | 包体积 | ${DEB_MB} MiB |
+          | 安装体积 | ~${INSTALLED_MB} MiB |
+          | slim deb sha256 | \`$SHA_ACTUAL\` |
+          | 上游来源 | [官方 API](https://www.workbuddy.cn/v2/update?platform=workbuddy-linux-x64-deb) |
+          | 构建流水线 | [run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+
+          ### 安装
+
+          \`\`\`bash
+          sudo dpkg -i ${DEB##*/}
+          # 或
+          sudo apt install ./${DEB##*/}
+          \`\`\`
+
+          > ⚠️ 本仓库为非官方项目，与腾讯无任何关联。使用问题请在本仓库提 Issue，
+          > **严禁向官方客服反馈**。官方软件本体版权归腾讯所有，受官方 EULA 约束。
+          EOF
+          )"
+          echo "Release $TAG published with $(basename "$DEB")"
