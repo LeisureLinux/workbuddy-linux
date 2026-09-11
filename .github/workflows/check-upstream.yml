@@ -116,8 +116,12 @@ jobs:
           TAG: ${{ steps.compare.outputs.tag }}
           VER: ${{ steps.upstream.outputs.version }}
         run: |
-          DEB="$(ls dist/*_slim.deb | head -1)"
+          # Debian 标准命名 <package>_<version>_<arch>.deb
+          DEB="$(ls -t dist/*_amd64.deb 2>/dev/null | head -1)"
           [ -n "$DEB" ] || { echo "::error::no slim deb produced"; exit 1; }
+          case "${DEB##*/}" in
+            *_slim.deb) echo "::error::non-standard deb filename (unexpected _slim suffix): ${DEB##*/}"; exit 1 ;;
+          esac
 
           PKG_VER="$(dpkg-deb -f "$DEB" Version)"
           INSTALLED_MB=$(( $(dpkg-deb -f "$DEB" Installed-Size) / 1024 ))

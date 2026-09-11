@@ -217,7 +217,8 @@ PKG_NAME="$(awk '/^Package:/{print $2}' "$ROOT/DEBIAN/control")"
 PKG_VER="$(awk '/^Version:/{print $2}' "$ROOT/DEBIAN/control")"
 OUT_DIR="$REPO_DIR/dist"
 mkdir -p "$OUT_DIR"
-OUT_DEB="$OUT_DIR/${PKG_NAME}_${PKG_VER}_amd64_slim.deb"
+# Debian 标准命名 <package>_<version>_<arch>.deb（版本里的 +slim1 已表达"瘦身版"）
+OUT_DEB="$OUT_DIR/${PKG_NAME}_${PKG_VER}_amd64.deb"
 
 # 构建前冒烟测试：确认 strip 沇没弄坏内置 runtime
 echo "[slim] smoke-testing stripped runtimes"
