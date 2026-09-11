@@ -7,7 +7,8 @@ name: Check Upstream & Release Slim Deb
 #      - 已存在 → 无新版，直接退出，不做任何事
 #      - 不存在 → 下载官方 deb → scripts/slim-deb.sh 瘦身 → 发布到 GitHub Releases
 #
-# 也可在 Actions 页面手动 Run workflow，force=true 可强制重建当前上游版本。
+# 也可在 Actions 页面手动 Run workflow，force=true 可强制重建当前上游版本
+# （已存在同名 Release 时就地替换 .deb 资产与说明，不会删除 Release 或 tag）。
 #
 # 注意：GitHub 定时工作流在仓库 60 天无活动后会被自动禁用，偶尔推个 commit 保活。
 
@@ -128,10 +129,8 @@ jobs:
           DEB_MB=$(( $(stat -c%s "$DEB") / 1024 / 1024 ))
           SHA_ACTUAL="$(sha256sum "$DEB" | awk '{print $1}')"
 
-          gh release create "$TAG" "$DEB" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "WorkBuddy slim v$VER" \
-            --notes "$(cat <<EOF
+          TITLE="WorkBuddy slim v$VER"
+          NOTES="$(cat <<EOF
           ## WorkBuddy Linux slim v$VER
 
           官方 Linux deb 的**非官方瘦身重打包**：移除 Windows/macOS 等非本平台 payload、
@@ -158,4 +157,24 @@ jobs:
           > **严禁向官方客服反馈**。官方软件本体版权归腾讯所有，受官方 EULA 约束。
           EOF
           )"
+
+          # force 重建时 release 已存在：就地替换资产与说明（不删 release、不动 tag），
+          # 保证 sha256 说明与实际上传的文件始终一致，并且能清掉改名前的旧文件名。
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::release $TAG already exists — replacing assets and notes"
+            while read -r old; do
+              if [ -n "$old" ] && [ "$old" != "${DEB##*/}" ]; then
+                echo "Removing stale asset: $old"
+                gh release delete-asset "$TAG" "$old" --repo "$GITHUB_REPOSITORY" --yes
+              fi
+            done < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+                       --jq '.assets[] | select(.name | endswith(".deb")) | .name')
+            gh release upload "$TAG" "$DEB" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES"
+          else
+            gh release create "$TAG" "$DEB" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TITLE" \
+              --notes "$NOTES"
+          fi
           echo "Release $TAG published with $(basename "$DEB")"
